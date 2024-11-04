@@ -3,11 +3,13 @@ App(
     name="File Transfer",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="file_transfer_app",
-    stack_size=4 * 1024,
+    stack_size=6 * 1024,
     order=20,
     requires=[
         "gui",
         "notification",
         "storage",
     ],
+    fap_icon="icons/file_transfer_icon.png",
+    fap_category="Tools",
 )
