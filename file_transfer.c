@@ -5,12 +5,19 @@
 #include <notification/notification_messages.h>
 
 typedef enum {
+    MenuOption_Send,
+    MenuOption_Receive,
+    MenuOption_Exit,
+    MenuOption_Count  // Брой опции в менюто
+} MenuOption;
+
+typedef enum {
     Mode_None,
-    Mode_Send,
-    Mode_Receive
+    Mode_Done
 } TransferMode;
 
 TransferMode current_mode = Mode_None;
+MenuOption selected_option = MenuOption_Send;
 
 // Функция за записване на данни във файл
 void receive_file() {
@@ -19,6 +26,7 @@ void receive_file() {
 
     if (!file) {
         furi_record_close(RECORD_STORAGE);
+        FURI_LOG_E("FileTransfer", "Failed to create file for receiving data");
         return;
     }
 
@@ -26,6 +34,7 @@ void receive_file() {
     storage_file_write(file, data, strlen(data));
     storage_file_close(file);
     furi_record_close(RECORD_STORAGE);
+    FURI_LOG_I("FileTransfer", "File successfully received and saved");
 }
 
 // Функция за четене на данни от файл
@@ -35,31 +44,74 @@ void send_file() {
 
     if (file) {
         char buffer[64];
-        storage_file_read(file, buffer, sizeof(buffer) - 1);
-        buffer[sizeof(buffer) - 1] = '\0';  // Добавяне на край на стринга
-        // Може да се използва buffer за показване на данните на дисплея или други операции
+        ssize_t read_bytes = storage_file_read(file, buffer, sizeof(buffer) - 1);
+        buffer[read_bytes] = '\0';  // Добавяне на край на стринга
+
+        if (read_bytes > 0) {
+            FURI_LOG_I("FileTransfer", "Data read: %s", buffer);
+        } else {
+            FURI_LOG_E("FileTransfer", "Failed to read data from file");
+        }
         storage_file_close(file);
+    } else {
+        FURI_LOG_E("FileTransfer", "File not found for sending");
     }
+
     furi_record_close(RECORD_STORAGE);
 }
 
 // Графичен интерфейс на основното меню
-void draw_main_menu(Canvas* canvas) {
+void draw_main_menu(Canvas* canvas, void* ctx) {
     canvas_clear(canvas);
     canvas_set_font(canvas, FontPrimary);
+
+    // Рисуване на менюто
     canvas_draw_str(canvas, 10, 20, "File Transfer");
-    canvas_draw_str(canvas, 10, 40, "1. Send File");
-    canvas_draw_str(canvas, 10, 60, "2. Receive File");
-    canvas_draw_str(canvas, 10, 80, "Press 1 or 2 to choose");
+
+    // Опции в менюто
+    const char* options[MenuOption_Count] = {"Send File", "Receive File", "Exit"};
+
+    for(int i = 0; i < MenuOption_Count; i++) {
+        if(i == selected_option) {
+            // Показване на селектора (стрелка) за избраната опция
+            canvas_draw_str(canvas, 5, 40 + (i * 20), ">");
+        }
+        canvas_draw_str(canvas, 20, 40 + (i * 20), options[i]);
+    }
 }
 
 // Обработка на входните данни
 void input_callback(InputEvent* input_event, void* ctx) {
     if(input_event->type == InputTypePress) {
-        if(input_event->key == InputKey1) {
-            current_mode = Mode_Send;
-        } else if(input_event->key == InputKey2) {
-            current_mode = Mode_Receive;
+        switch(input_event->key) {
+            case InputKeyUp:
+                if(selected_option > 0) {
+                    selected_option--;
+                }
+                break;
+
+            case InputKeyDown:
+                if(selected_option < MenuOption_Count - 1) {
+                    selected_option++;
+                }
+                break;
+
+            case InputKeyOk:
+                if(selected_option == MenuOption_Send) {
+                    send_file();
+                } else if(selected_option == MenuOption_Receive) {
+                    receive_file();
+                } else if(selected_option == MenuOption_Exit) {
+                    current_mode = Mode_Done;
+                }
+                break;
+
+            case InputKeyBack:
+                current_mode = Mode_Done;
+                break;
+
+            default:
+                break;
         }
     }
 }
@@ -74,19 +126,12 @@ int32_t file_transfer_app(void* p) {
     view_port_input_callback_set(viewport, input_callback, NULL);
     gui_add_view_port(gui, viewport, GuiLayerFullscreen);
 
-    while(current_mode == Mode_None) {
+    while(current_mode != Mode_Done) {
+        view_port_update(viewport);  // Актуализиране на изгледа
         furi_delay_ms(100);
     }
 
-    if(current_mode == Mode_Send) {
-        notification_message(notification, &sequence_set_only_red);
-        send_file();
-    } else if(current_mode == Mode_Receive) {
-        notification_message(notification, &sequence_set_only_green);
-        receive_file();
-    }
-
-    notification_message(notification, &sequence_reset_red);
+    // Почистване и излизане от приложението
     gui_remove_view_port(gui, viewport);
     view_port_free(viewport);
     furi_record_close(RECORD_GUI);
