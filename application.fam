@@ -4,12 +4,10 @@ App(
     apptype=FlipperAppType.EXTERNAL,
     entry_point="file_transfer_app",
     stack_size=4 * 1024,
-    fap_icon="file_transfer_icon.png",
-    fap_category="Tools",
-    fap_file_assets="assets",
-    fap_author="@YourName",
-    fap_version="1.0",
-    fap_description="Send and receive files via HID between Flipper Zero and a computer.",
-    fap_icon_assets="icons",
-    fap_icon_assets_symbol="file_transfer",
+    order=20,
+    requires=[
+        "gui",
+        "notification",
+        "storage",
+    ],
 )
