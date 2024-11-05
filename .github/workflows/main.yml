@@ -1,0 +1,44 @@
+name: Build Flipper Zero FAP
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Momentum SDK
+        run: |
+          git clone --recursive --jobs 8 https://github.com/Next-Flip/Momentum-Firmware.git momentum
+          cd momentum
+          ./fbt update
+          echo "Momentum SDK set up complete."
+
+      - name: Copy application files
+        run: |
+          mkdir -p momentum/applications/filetransfer
+          cp ./file_transfer.c ./momentum/applications/filetransfer/
+          cp ./application.fam ./momentum/applications/filetransfer/
+          echo "File transfer application files copied."
+
+      - name: Build Flipper Zero FAP
+        run: |
+          cd momentum
+          ./fbt launch APPSRC=applications/filetransfer
+        env:
+          FLIPPER_APP_NAME: "filetransfer"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: flipper-fap
+          path: momentum/build/fap/
