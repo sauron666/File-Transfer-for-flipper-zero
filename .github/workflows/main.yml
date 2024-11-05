@@ -23,19 +23,20 @@ jobs:
           ./fbt
           echo "Momentum SDK set up complete."
 
-      - name: Copy application files
-        run: |
-          mkdir -p momentum/applications/filetransfer
-          cp ./file_transfer.c ./momentum/applications/filetransfer/
-          cp ./application.fam ./momentum/applications/filetransfer/
-          echo "File transfer application files copied."
+  - name: Copy application files
+  run: |
+    mkdir -p momentum/applications/filetransfer
+    cp ./file_transfer.c ./momentum/applications/filetransfer/
+    cp ./application.fam ./momentum/applications/filetransfer/
+    echo "File transfer application files copied."
 
-      - name: Build Flipper Zero FAP
-        run: |
-          cd momentum
-          ./fbt launch APPSRC=applications/filetransfer
-        env:
-          FLIPPER_APP_NAME: "filetransfer_app"
+     - name: Build Flipper Zero FAP
+  run: |
+    cd momentum
+    ./fbt launch APPSRC=applications/filetransfer CFLAGS=-I./lib/usb -I./lib/hal
+  env:
+    FLIPPER_APP_NAME: "filetransfer_app"
+
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
