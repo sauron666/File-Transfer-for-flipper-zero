@@ -10,6 +10,5 @@ App(
         "notification",
         "storage",
     ],
-    fap_icon="icons/file_transfer_icon.png",
     fap_category="Tools",
 )
