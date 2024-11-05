@@ -3,6 +3,8 @@
 #include <input/input.h>
 #include <storage/storage.h>
 #include <notification/notification_messages.h>
+#include <usb/usb.h>
+#include <usb/hid/hid.h>
 
 typedef enum {
     MenuOption_Send,
@@ -22,7 +24,11 @@ MenuOption selected_option = MenuOption_Send;
 // Функция за записване на данни във файл
 void receive_file() {
     Storage* storage = furi_record_open(RECORD_STORAGE);
-    File* file = storage_file_open(storage, "/ext/received_file.txt", FSAM_WRITE, FSOM_CREATE_ALWAYS);
+    if (!storage) {
+        FURI_LOG_E("FileTransfer", "Failed to open storage");
+        return;
+    }
+    File* file = storage_file_open(storage, "/ext/received_file.bin", FSAM_WRITE, FSOM_CREATE_ALWAYS);
 
     if (!file) {
         furi_record_close(RECORD_STORAGE);
@@ -30,27 +36,31 @@ void receive_file() {
         return;
     }
 
-    const char* data = "Example data to store in file";
-    storage_file_write(file, data, strlen(data));
+    uint8_t buffer[64];
+    size_t received_bytes = 0;
+    while ((received_bytes = usb_hid_receive(buffer, sizeof(buffer))) > 0) {
+        storage_file_write(file, buffer, received_bytes);
+    }
+
     storage_file_close(file);
     furi_record_close(RECORD_STORAGE);
     FURI_LOG_I("FileTransfer", "File successfully received and saved");
 }
 
-// Функция за четене на данни от файл
+// Функция за четене на данни от файл и изпращането им през HID
 void send_file() {
     Storage* storage = furi_record_open(RECORD_STORAGE);
-    File* file = storage_file_open(storage, "/ext/received_file.txt", FSAM_READ, FSOM_OPEN_EXISTING);
+    if (!storage) {
+        FURI_LOG_E("FileTransfer", "Failed to open storage");
+        return;
+    }
+    File* file = storage_file_open(storage, "/ext/received_file.bin", FSAM_READ, FSOM_OPEN_EXISTING);
 
     if (file) {
-        char buffer[64];
-        ssize_t read_bytes = storage_file_read(file, buffer, sizeof(buffer) - 1);
-        buffer[read_bytes] = '\0';  // Добавяне на край на стринга
-
-        if (read_bytes > 0) {
-            FURI_LOG_I("FileTransfer", "Data read: %s", buffer);
-        } else {
-            FURI_LOG_E("FileTransfer", "Failed to read data from file");
+        uint8_t buffer[64];
+        ssize_t read_bytes = 0;
+        while ((read_bytes = storage_file_read(file, buffer, sizeof(buffer))) > 0) {
+            usb_hid_send(buffer, read_bytes);
         }
         storage_file_close(file);
     } else {
@@ -62,6 +72,7 @@ void send_file() {
 
 // Графичен интерфейс на основното меню
 void draw_main_menu(Canvas* canvas, void* ctx) {
+    (void)ctx;  // Unused parameter
     canvas_clear(canvas);
     canvas_set_font(canvas, FontPrimary);
 
@@ -82,6 +93,7 @@ void draw_main_menu(Canvas* canvas, void* ctx) {
 
 // Обработка на входните данни
 void input_callback(InputEvent* input_event, void* ctx) {
+    (void)ctx;  // Unused parameter
     if(input_event->type == InputTypePress) {
         switch(input_event->key) {
             case InputKeyUp:
@@ -118,8 +130,12 @@ void input_callback(InputEvent* input_event, void* ctx) {
 
 // Основна функция на приложението
 int32_t file_transfer_app(void* p) {
+    (void)p;  // Unused parameter
     Gui* gui = furi_record_open(RECORD_GUI);
-    NotificationApp* notification = furi_record_open(RECORD_NOTIFICATION);
+    if (!gui) {
+        FURI_LOG_E("FileTransfer", "Failed to open GUI");
+        return -1;
+    }
 
     ViewPort* viewport = view_port_alloc();
     view_port_draw_callback_set(viewport, draw_main_menu, NULL);
@@ -135,7 +151,6 @@ int32_t file_transfer_app(void* p) {
     gui_remove_view_port(gui, viewport);
     view_port_free(viewport);
     furi_record_close(RECORD_GUI);
-    furi_record_close(RECORD_NOTIFICATION);
 
     return 0;
 }
