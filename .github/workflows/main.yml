@@ -33,7 +33,7 @@ jobs:
       - name: Build Flipper Zero FAP
         run: |
           cd momentum
-          ./fbt launch APPSRC=applications/filetransfer CFLAGS=-Wno-error=incompatible-pointer-types -Wno-error=unused-parameter -Wno-error=unused-variable
+          ./fbt launch APPSRC=applications/filetransfer
         env:
           FLIPPER_APP_NAME: "filetransfer_app"
 
