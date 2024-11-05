@@ -20,7 +20,7 @@ jobs:
         run: |
           git clone --recursive --jobs 8 https://github.com/Next-Flip/Momentum-Firmware.git momentum
           cd momentum
-          ./fbt update
+          ./fbt
           echo "Momentum SDK set up complete."
 
       - name: Copy application files
@@ -33,9 +33,9 @@ jobs:
       - name: Build Flipper Zero FAP
         run: |
           cd momentum
-          ./fbt launch APPSRC=applications/filetransfer
+          ./fbt launch APPSRC=applications_user/filetransfer
         env:
-          FLIPPER_APP_NAME: "filetransfer"
+          FLIPPER_APP_NAME: "filetransfer_app"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
